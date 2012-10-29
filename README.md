@@ -67,6 +67,12 @@ You can install noeqd by downloading the binary
 
 *or*
 
+Install with go by running:
+
+		$ go get github.com/bmizerany/noeqd
+
+*or*
+
 Clone the repo and build with [Go](http://golang.org/doc/install.html) (Requires Go `0beb796b4ef8 weekly/weekly.2011-12-02` or later)
 
 		$ git clone http://github.com/bmizerany/noeqd
