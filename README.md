@@ -73,11 +73,11 @@ Install with go by running:
 
 *or*
 
-Clone the repo and build with [Go](http://golang.org/doc/install.html) (Requires Go `0beb796b4ef8 weekly/weekly.2011-12-02` or later)
+Clone the repo and build with [Go](http://golang.org/doc/install) (Requires Go `1.0` or later)
 
 		$ git clone http://github.com/bmizerany/noeqd
 		$ cd noeqd
-		$ make install
+		$ GOBIN=`go env GOROOT`/bin go install
 
 ## Run
 
