@@ -61,23 +61,18 @@ until you've reached this limit.
 
 ## Install
 
-You can install noeqd by downloading the binary
-[here](http://github.com/bmizerany/noeqd/downloads) and putting it in your
-`PATH`.
-
-*or*
-
 Install with go by running:
 
-		$ go get github.com/bmizerany/noeqd
+		$ go get github.com/noeq/noeqd
 
 *or*
 
 Clone the repo and build with [Go](http://golang.org/doc/install) (Requires Go `1.0` or later)
 
-		$ git clone http://github.com/bmizerany/noeqd
+		$ cd "$GOPATH"/src/
+		$ git clone http://github.com/noeq/noeqd
 		$ cd noeqd
-		$ GOBIN=`go env GOROOT`/bin go install
+		$ go install
 
 ## Run
 
@@ -192,8 +187,11 @@ NOTE: The A GUIDs will strictly sort, as will B's.
 ## Clients
 
 Clients implement a simple wire-protocol that is specified below. Implementing
-a client in your favorite language is trivial and should require no
-dependencies.
+a client in your favorite language is trivial and should require no dependencies.
+
+Client libraries for various languages can be found at the
+[noeq github page](http://github.com/noeq/).  If your favorite isn't listed, feel
+free to contribute one.
 
 **Failure Recovery**
 
@@ -203,8 +201,7 @@ from a lost connection, a client should randomly select another address from
 its list, or in the case of DNS: reconnect using the same address allowing DNS
 to choose the next IP.
 
-See [noeq.go](http://github.com/bmizerany/noeq.go) for a working
-example.
+See [noeq](http://github.com/noeq/noeq) for a working example.
 
 ## Protocol
 
@@ -286,15 +283,15 @@ pull-request button.
 
 ## Issues
 
-These are tracked in this repos Github [issues tracker](http://github.com/bmizerany/noeqd/issues).
+These are tracked in this repos Github [issues tracker](http://github.com/noeq/noeqd/issues).
 
 ## See Also
 
 Noeq command line util:
-<http://github.com/bmizerany/noeq>
+<http://github.com/noeq/noeq-cli>
 
-Noeq.go for Go:
-<http://github.com/bmizerany/noeq.go>
+Noeq for Go:
+<http://github.com/noeq/noeq/>
 
 ## Thank you
 
