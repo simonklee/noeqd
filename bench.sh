@@ -1,2 +1,2 @@
 #!/bin/sh
-gotest -run="no tests" -bench=".*"
+go test -run="no tests" -bench=".*"

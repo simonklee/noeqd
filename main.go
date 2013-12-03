@@ -99,6 +99,7 @@ func serve(r io.Reader, w io.Writer) error {
 	}
 
 	c := make([]byte, 1)
+
 	for {
 		// Wait for 1 byte request
 		_, err := io.ReadFull(r, c)
@@ -131,12 +132,11 @@ func serve(r io.Reader, w io.Writer) error {
 		}
 
 		_, err = w.Write(b)
+
 		if err != nil {
 			return err
 		}
 	}
-
-	panic("not reached")
 }
 
 func milliseconds() int64 {
