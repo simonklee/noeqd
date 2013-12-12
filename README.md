@@ -83,7 +83,6 @@ Clone the repo and build with [Go](http://golang.org/doc/install) (Requires Go `
 
 		$ noeqd -h
 		Usage of noeqd:
-		  -d=0: datacenter id
 		  -l="0.0.0.0:4444": the address to listen on
 		  -w=0: worker id
 
@@ -94,12 +93,9 @@ always correct to assume this. Its easy to do without baking it in. Here is an
 example script in the repo for doing so if you need it (using [Doozer][]):
 
 		#!/bin/sh
-		# usage: ./coord-exec.sh <datacenter-id>
+		# usage: ./coord-exec.sh 
 
-		did=$1
 		wid=0
-
-		[ -z "$did" ] && did=0
 
 		_set() {
 		  printf 1 | doozer set /goflake/$did/$wid 0
@@ -109,7 +105,7 @@ example script in the repo for doing so if you need it (using [Doozer][]):
 		do wid=`expr $wid + 1`
 		done
 
-		exec noeqd -w $wid -d $did
+		exec noeqd -w $wid
 
 ## The Why
 
