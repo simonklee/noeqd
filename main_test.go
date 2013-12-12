@@ -9,7 +9,7 @@ import (
 )
 
 func TestServeZero(t *testing.T) {
-	ast := &assert.Assert{t}
+	ast := assert.NewAssert(t)
 	i, o := bytes.NewBuffer([]byte{0}), new(bytes.Buffer)
 	err := serve(i, o)
 	ast.Equal(0, o.Len())
@@ -17,7 +17,7 @@ func TestServeZero(t *testing.T) {
 }
 
 func TestSequence(t *testing.T) {
-	ast := &assert.Assert{t}
+	ast := assert.NewAssert(t)
 	prevId, err := nextId()
 	ast.Nil(err)
 
@@ -30,7 +30,7 @@ func TestSequence(t *testing.T) {
 }
 
 func TestUniqueness(t *testing.T) {
-	ast := &assert.Assert{t}
+	ast := assert.NewAssert(t)
 	w0Id, err := nextId()
 	ast.Nil(err)
 	*wid = 1
@@ -40,7 +40,7 @@ func TestUniqueness(t *testing.T) {
 }
 
 func TestServeMoreThanZero(t *testing.T) {
-	ast := &assert.Assert{t}
+	ast := assert.NewAssert(t)
 	i, o := bytes.NewBuffer([]byte{1}), new(bytes.Buffer)
 	err := serve(i, o)
 	ast.Equal(io.EOF, err)

@@ -22,24 +22,20 @@ var (
 )
 
 const (
-	workerIdBits       = uint64(5)
-	datacenterIdBits   = uint64(5)
-	maxWorkerId        = int64(-1) ^ (int64(-1) << workerIdBits)
-	maxDatacenterId    = int64(-1) ^ (int64(-1) << datacenterIdBits)
-	sequenceBits       = uint64(12)
-	workerIdShift      = sequenceBits
-	datacenterIdShift  = sequenceBits + workerIdBits
-	timestampLeftShift = sequenceBits + workerIdBits + datacenterIdBits
-	sequenceMask       = int64(-1) ^ (int64(-1) << sequenceBits)
+	sequenceBits   = uint64(12)
+	sequenceMask   = int64(-1) ^ (int64(-1) << sequenceBits)
+	workerIdBits   = uint64(10)
+	maxWorkerId    = int64(-1) ^ (int64(-1) << 10)
+	workerIdShift  = sequenceBits
+	timestampShift = sequenceBits + workerIdBits
 
-	// Tue, 21 Mar 2006 20:50:14.000 GMT
-	twepoch = int64(1288834974657)
+	// 1 Jan 2012 00:00:00.000 GMT
+	epoch = int64(1325289600000)
 )
 
 // Flags
 var (
 	wid   = flag.Int64("w", 0, "worker id")
-	did   = flag.Int64("d", 0, "datacenter id")
 	laddr = flag.String("l", "0.0.0.0:4444", "the address to listen on")
 	lts   = flag.Int64("t", -1, "the last timestamp in milliseconds")
 )
@@ -58,10 +54,6 @@ func parseFlags() {
 	flag.Parse()
 	if *wid < 0 || *wid > maxWorkerId {
 		log.Fatalf("worker id must be between 0 and %d", maxWorkerId)
-	}
-
-	if *did < 0 || *did > maxDatacenterId {
-		log.Fatalf("datacenter id must be between 0 and %d", maxDatacenterId)
 	}
 }
 
@@ -155,7 +147,9 @@ func nextId() (int64, error) {
 
 	if *lts == ts {
 		seq = (seq + 1) & sequenceMask
+
 		if seq == 0 {
+			// wait for 1 millisecond
 			for ts <= *lts {
 				ts = milliseconds()
 			}
@@ -165,19 +159,14 @@ func nextId() (int64, error) {
 	}
 
 	*lts = ts
-
-	id := ((ts - twepoch) << timestampLeftShift) |
-		(*did << datacenterIdShift) |
-		(*wid << workerIdShift) |
-		seq
-
+	id := ((ts - epoch) << timestampShift) | (*wid << workerIdShift) | seq
 	return id, nil
 }
 
 func auth(r io.Reader) error {
 	b := make([]byte, 2)
-	_, err := io.ReadFull(r, b)
-	if err != nil {
+
+	if _, err := io.ReadFull(r, b); err != nil {
 		return err
 	}
 
@@ -186,8 +175,8 @@ func auth(r io.Reader) error {
 	}
 
 	b = make([]byte, b[1])
-	_, err = io.ReadFull(r, b)
-	if err != nil {
+
+	if _, err := io.ReadFull(r, b); err != nil {
 		return err
 	}
 

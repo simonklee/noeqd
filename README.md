@@ -1,20 +1,22 @@
-# noeqd - A fault-tolerant network service for meaningful GUID generation
-
-Based on [snowflake][].
+# noeqd - A fault-tolerant network service for meaningful
+GUID generation
 
 ## Motivation
 
-GUIDs (Globally Unique IDs) are useful for a number a obvious reasons:
-database keys, logging, etc.
+GUIDs (Globally Unique IDs) are useful for a number a
+obvious reasons: database keys, logging, etc.
 
-Generating GUIDs with pure randomness is not always ideal because it doesn't
-cluster well, produces terrible locality, and no insight as to when it was
-generated.
+Generating GUIDs with pure randomness is not always ideal
+because it doesn't cluster well, produces terrible locality,
+and no insight as to when it was generated.
 
-This network service should also have these properties (Differences from [snowflake][]):
+This network service should also have these properties
+(Differences from [snowflake][]):
 
-* easy distribution with *no dependencies* and little to *no setup*
-* dirt simple wire-protocol (trivial to implement clients without added dependencies and complexity)
+* easy distribution with *no dependencies* and little to *no
+  setup*
+* dirt simple wire-protocol (trivial to implement clients
+  without added dependencies and complexity)
 * low memory footprint (starts and stays around ~1MB)
 * zero configuration
 * reduced network IO when multiple keys are needed at once
@@ -22,42 +24,45 @@ This network service should also have these properties (Differences from [snowfl
 ## Glossary of terms to follow
 
 * `GUID`: Globally Unique Identifier
-* `datacenter`: A facility used to house computer systems.
-* `worker`: A single `noeqd` process with a worker and datacenter ID combination unique to their cohort.
-* `datacenter-id`: An integer representing a particular datacenter.
+* `worker`: A single `noeqd` process with a worker. 
 * `worker-id`: An integer representing a particular worker.
-* `machine-id`: The comination of `datacenter-id` and `worker-id`
-* `twepoch`: custom epoch (same as [snowflake][])
+* `epoch`: custom epoch (same as [snowflake][])
+* `sequence number`: 12 bits - rolls over every 4096 per
+  worker.
 
 ## Important note:
 
 Reliability, and guarantees depend on:
 
-**System clock depedency and skew protection:** - (From [snowflake][] README and slightly modified)
+**System clock depedency and skew protection:** - (From
+[snowflake][] README and slightly modified)
 
-You should use NTP to keep your system clock accurate. Noeq protects from
-non-monotonic clocks, i.e. clocks that run backwards. If your clock is running
-fast and NTP tells it to repeat a few milliseconds, Noeq will refuse to
-generate ids until a time that is after the last time we generated an id. Even
-better, run in a mode where ntp won't move the clock backwards. See
-<http://wiki.dovecot.org/TimeMovedBackwards#Time_synchronization> for tips on how
-to do this.
+You should use NTP to keep your system clock accurate. Noeq
+protects from non-monotonic clocks, i.e. clocks that run
+backwards. If your clock is running fast and NTP tells it to
+repeat a few milliseconds, Noeq will refuse to generate ids
+until a time that is after the last time we generated an id.
+Even better, run in a mode where ntp won't move the clock
+backwards. See
+<http://wiki.dovecot.org/TimeMovedBackwards#Time_synchronization>
+for tips on how to do this.
 
-**Avoiding the reuse of a worker-id + datacenter-id too quickly**
+**Avoiding the reuse of a worker-id too quickly**
 
-It's important to know that a newly born process has no way of tracking its
-previous life and where it left of. This means time could have moved
-backwards while it was dead.
+It's important to know that a newly born process has no way
+of tracking its previous life and where it left of. This
+means time could have moved backwards while it was dead.
 
-It's important to **not** use the same worker-id + datacenter-id without
-telling the new process when to start generating new IDs to avoid duplicates.
+It's important to **not** use the same worker-id without
+telling the new process when to start generating new IDs to
+avoid duplicates.
 
-It is only safe to reuse the same worker-id + datacenter-id when you can
-guarantee the current time is greater than the time of death. You can use the
-`-t` option to specifiy this.
+It is only safe to reuse the same worker-id when you can
+guarantee the current time is greater than the time of
+death. You can use the `-t` option to specifiy this.
 
-You may have up to 1024 machine ids. It's generally safe to not reuse them
-until you've reached this limit.
+You may have up to 1024 worker ids. It's generally safe to
+not reuse them until you've reached this limit.
 
 ## Install
 
@@ -110,28 +115,33 @@ example script in the repo for doing so if you need it (using [Doozer][]):
 
 **Uniqness**
 
-We must know that a GUID, once generated, has never and will never be generated
-again (i.e. Globally Unique) in our system.
+We must know that a GUID, once generated, has never and will
+never be generated again (i.e. Globally Unique) in our
+system.
 
 **Performance**
 
-Heroku serves many 10's of thousands of requests a second. Each request can
-require multiple actions that need their own id. To be on the safe side, we
-will require a minimum of 100k ids/sec (without network latency); possibly more
-in the very near future. See benchmarks near the end of this README.
+Heroku serves many 10's of thousands of requests a second.
+Each request can require multiple actions that need their
+own id. To be on the safe side, we will require a minimum of
+100k ids/sec (without network latency); possibly more in the
+very near future. See benchmarks near the end of this
+README.
 
 **Uncoordinated**
 
-We need all `noeqd`s to be able to generate GUIDs without coordinating with
-other `noeqd` processes. Coordination requires more time complexity than if
-we didn't require it and reduces the amount of GUIDs we can generate during
-that time. It also affects the yield (the probability the service will complete
-a request).
+We need all `noeqd`s to be able to generate GUIDs without
+coordinating with other `noeqd` processes. Coordination
+requires more time complexity than if we didn't require it
+and reduces the amount of GUIDs we can generate during that
+time. It also affects the yield (the probability the service
+will complete a request).
 
 **Direcly sortable by time (roughly)**
 
-Noeq (like [snowflake][]) will guarantee the GUIDs will be k-sorted within
-a reasonable bound (10's of ms to no more than 1s). More on this in "How it works."
+Noeq (like [snowflake][]) will guarantee the GUIDs will be
+k-sorted within a reasonable bound (10's of ms to no more
+than 1s). More on this in "How it works."
 
 References:
 
@@ -141,21 +151,26 @@ References:
 
 # The "Why not snowflake?"
 
-At Heroku, we value services that are simple, as self-contained as possible,
-and use nothing more than they can reasonably get away with. The setup and
-distribution of an application should be as quick and painless as possible.
-This means ruthlessly eliminating as much baggage, waste, and other overhead as
-possible.
+At Heroku, we value services that are simple, as
+self-contained as possible, and use nothing more than they
+can reasonably get away with. The setup and distribution of
+an application should be as quick and painless as possible.
+This means ruthlessly eliminating as much baggage, waste,
+and other overhead as possible.
 
 # How it works
 
 ## GUID generation and guarantees
 
-GUIDs are represented as 64bit integers and are composed of (as described by the [snowflake][] README):
+GUIDs are represented as 64 bit integers and are composed of
+(as described by the [snowflake][] README):
 
-* time - 41 bits (millisecond precision with a custom epoch gives us 69 years)
-* configured machine id - 10 bits - gives us up to 1024 machines
-* sequence number - 12 bits - rolls over every 4096 per machine (with protection to avoid rollover in the same ms)
+* time - 41 bits (millisecond precision with a custom epoch
+  gives us 69 years)
+* configured machine id - 10 bits - gives us up to 1024
+  machines
+* sequence number - 12 bits - rolls over every 4096 per
+  machine (with protection to avoid rollover in the same ms)
 
 ## Sorting - Time Ordered
 
