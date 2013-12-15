@@ -10,10 +10,9 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/pprof"
-	"sync"
 	"syscall"
-	"time"
 
+	"github.com/simonz05/noeqd/snowflake"
 	"github.com/simonz05/util/log"
 )
 
@@ -24,18 +23,6 @@ var (
 
 var (
 	token = os.Getenv("NOEQ_TOKEN")
-)
-
-const (
-	sequenceBits   = uint64(12)
-	sequenceMask   = int64(-1) ^ (int64(-1) << sequenceBits)
-	workerIdBits   = uint64(10)
-	maxWorkerId    = int64(-1) ^ (int64(-1) << 10)
-	workerIdShift  = sequenceBits
-	timestampShift = sequenceBits + workerIdBits
-
-	// 1 Jan 2012 00:00:00.000 GMT
-	epoch = int64(1325289600000)
 )
 
 var (
@@ -61,22 +48,12 @@ Description:
 }
 
 var (
-	mu  sync.Mutex
-	seq int64
+	sf *snowflake.Snowflake
 )
 
 func main() {
-	parseFlags()
-	listenAndServe(*laddr)
-}
-
-func parseFlags() {
 	flag.Usage = usage
 	flag.Parse()
-
-	if *wid < 0 || *wid > maxWorkerId {
-		log.Fatalf("worker id must be between 0 and %d", maxWorkerId)
-	}
 
 	if *version {
 		fmt.Fprintln(os.Stdout, Version)
@@ -97,6 +74,17 @@ func parseFlags() {
 		}
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
+	}
+
+	setupServer()
+	listenAndServe(*laddr)
+}
+
+func setupServer() {
+	var err error
+
+	if sf, err = snowflake.New(*wid); err != nil {
+		log.Fatalln(err)
 	}
 }
 
@@ -146,6 +134,7 @@ func serveConn(conn net.Conn) {
 func serve(r io.Reader, w io.Writer) error {
 	if token != "" {
 		err := auth(r)
+
 		if err != nil {
 			return err
 		}
@@ -156,19 +145,23 @@ func serve(r io.Reader, w io.Writer) error {
 	for {
 		// Wait for 1 byte request
 		_, err := io.ReadFull(r, c)
+
 		if err != nil {
 			return err
 		}
 
 		n := uint(c[0])
+
 		if n == 0 {
 			// No authing at this point
 			return ErrInvalidRequest
 		}
 
 		b := make([]byte, n*8)
+
 		for i := uint(0); i < n; i++ {
-			id, err := nextId()
+			id, err := sf.Next()
+
 			if err != nil {
 				return err
 			}
@@ -190,38 +183,6 @@ func serve(r io.Reader, w io.Writer) error {
 			return err
 		}
 	}
-}
-
-func milliseconds() int64 {
-	return time.Now().UnixNano() / 1e6
-}
-
-func nextId() (int64, error) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	ts := milliseconds()
-
-	if ts < *lts {
-		return 0, fmt.Errorf("time is moving backwards, waiting until %d\n", *lts)
-	}
-
-	if *lts == ts {
-		seq = (seq + 1) & sequenceMask
-
-		if seq == 0 {
-			// wait for 1 millisecond
-			for ts <= *lts {
-				ts = milliseconds()
-			}
-		}
-	} else {
-		seq = 0
-	}
-
-	*lts = ts
-	id := ((ts - epoch) << timestampShift) | (*wid << workerIdShift) | seq
-	return id, nil
 }
 
 func auth(r io.Reader) error {

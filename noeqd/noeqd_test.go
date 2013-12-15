@@ -3,12 +3,18 @@ package main
 import (
 	"bytes"
 	"io"
+	"sync"
 	"testing"
 
 	"github.com/simonz05/util/assert"
 )
 
+var (
+	setupServerOnce sync.Once
+)
+
 func TestServeZero(t *testing.T) {
+	setupServerOnce.Do(setupServer)
 	ast := assert.NewAssert(t)
 	i, o := bytes.NewBuffer([]byte{0}), new(bytes.Buffer)
 	err := serve(i, o)
@@ -16,30 +22,8 @@ func TestServeZero(t *testing.T) {
 	ast.Equal(ErrInvalidRequest, err)
 }
 
-func TestSequence(t *testing.T) {
-	ast := assert.NewAssert(t)
-	prevId, err := nextId()
-	ast.Nil(err)
-
-	for i := 1; ((int64(i) + 1) & sequenceMask) != 0; i++ {
-		curId, err := nextId()
-		ast.Nil(err)
-		ast.NotEqual(prevId, curId)
-		prevId = curId
-	}
-}
-
-func TestUniqueness(t *testing.T) {
-	ast := assert.NewAssert(t)
-	w0Id, err := nextId()
-	ast.Nil(err)
-	*wid = 1
-	w1Id, err := nextId()
-	ast.Nil(err)
-	ast.NotEqual(w0Id, w1Id)
-}
-
 func TestServeMoreThanZero(t *testing.T) {
+	setupServerOnce.Do(setupServer)
 	ast := assert.NewAssert(t)
 	i, o := bytes.NewBuffer([]byte{1}), new(bytes.Buffer)
 	err := serve(i, o)
