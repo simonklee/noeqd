@@ -5,11 +5,16 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
+	"os/signal"
+	"runtime"
+	"runtime/pprof"
 	"sync"
+	"syscall"
 	"time"
+
+	"github.com/simonz05/util/log"
 )
 
 var (
@@ -33,12 +38,27 @@ const (
 	epoch = int64(1325289600000)
 )
 
-// Flags
 var (
-	wid   = flag.Int64("w", 0, "worker id")
-	laddr = flag.String("l", "0.0.0.0:4444", "the address to listen on")
-	lts   = flag.Int64("t", -1, "the last timestamp in milliseconds")
+	help       = flag.Bool("h", false, "show help text")
+	wid        = flag.Int64("w", 0, "worker id")
+	laddr      = flag.String("l", "0.0.0.0:4444", "the address to listen on")
+	lts        = flag.Int64("t", -1, "the last timestamp in milliseconds")
+	version    = flag.Bool("version", false, "show version number and exit")
+	cpuprofile = flag.String("debug.cpuprofile", "", "write cpu profile to file")
 )
+
+var Version = "0.1.0"
+
+func usage() {
+	fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS]\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "\nOptions:\n")
+	flag.PrintDefaults()
+	fmt.Fprintf(os.Stderr, `
+Description:
+  Fult-tolerant network service for GUID generation. 
+
+  `)
+}
 
 var (
 	mu  sync.Mutex
@@ -47,39 +67,80 @@ var (
 
 func main() {
 	parseFlags()
-	acceptAndServe(mustListen())
+	listenAndServe(*laddr)
 }
 
 func parseFlags() {
+	flag.Usage = usage
 	flag.Parse()
+
 	if *wid < 0 || *wid > maxWorkerId {
 		log.Fatalf("worker id must be between 0 and %d", maxWorkerId)
 	}
-}
 
-func mustListen() net.Listener {
-	l, err := net.Listen("tcp", *laddr)
-	if err != nil {
-		log.Fatal(err)
+	if *version {
+		fmt.Fprintln(os.Stdout, Version)
+		os.Exit(0)
 	}
-	return l
+
+	if *help {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 }
 
-func acceptAndServe(l net.Listener) {
+func sigTrapCloser(l net.Listener) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGHUP)
+
+	go func() {
+		for _ = range c {
+			// Once we close the listener the main loop will exit
+			l.Close()
+			log.Printf("Closed listener %s", l.Addr())
+		}
+	}()
+}
+
+func listenAndServe(laddr string) error {
+	l, err := net.Listen("tcp", laddr)
+
+	if err != nil {
+		return err
+	}
+
+	sigTrapCloser(l)
+
 	for {
-		cn, err := l.Accept()
+		conn, err := l.Accept()
+
 		if err != nil {
-			log.Println(err)
+			log.Errorln(err)
 		}
 
-		go func() {
-			err := serve(cn, cn)
-			if err != io.EOF {
-				log.Println(err)
-			}
-			cn.Close()
-		}()
+		go serveConn(conn)
 	}
+}
+
+func serveConn(conn net.Conn) {
+	err := serve(conn, conn)
+
+	if err != io.EOF {
+		log.Errorln(err)
+	}
+
+	conn.Close()
 }
 
 func serve(r io.Reader, w io.Writer) error {
